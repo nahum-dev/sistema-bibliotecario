@@ -16,14 +16,14 @@ class Usuario extends Authenticatable
 
     // Campos que se pueden llenar masivamente
     protected $fillable = [
-        'nombres',
-        'apellidos',
-        'carnet_u_identificacion',
-        'correo_electronico',
-        'password_hash',
-        'rol',
-        'activo',
-    ];
+    'nombres',
+    'apellidos',
+    'carnet_u_identificacion',
+    'correo_electronico',
+    'password_hash',
+    'rol',
+    'activo',
+];
 
     // Campos ocultos (nunca se envían en respuestas JSON)
     protected $hidden = [

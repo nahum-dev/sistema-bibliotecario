@@ -7,18 +7,19 @@ use Illuminate\Database\Eloquent\Model;
 class Libro extends Model
 {
     protected $table = 'libros';
-    protected $primaryKey = 'id_libro';
+protected $primaryKey = 'id_libro';
+public $incrementing = true;
 
-    protected $fillable = [
-        'id_categoria',
-        'titulo',
-        'isbn',
-        'editorial',
-        'anio_publicacion',
-        'cantidad_total',
-        'cantidad_disponible',
-        'activo',
-    ];
+protected $fillable = [
+    'titulo',
+    'isbn',
+    'editorial',
+    'id_categoria',
+    'anio_publicacion',
+    'cantidad_total',
+    'cantidad_disponible',
+    'activo',
+];
 
     protected $casts = [
         'activo' => 'boolean',

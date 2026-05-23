@@ -7,12 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class Categoria extends Model
 {
     protected $table = 'categorias';
-    protected $primaryKey = 'id_categoria';
+protected $primaryKey = 'id_categoria';
+public $incrementing = true;
 
-    protected $fillable = [
-        'nombre_categoria',
-        'descripcion',
-    ];
+protected $fillable = ['nombre_categoria', 'descripcion'];
 
     // Una categoría tiene muchos libros
     public function libros()
