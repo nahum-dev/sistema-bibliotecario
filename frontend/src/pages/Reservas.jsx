@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 function Modal({ titulo, onClose, children }) {
   return (
@@ -28,6 +29,9 @@ const estadoBadge = (estado) => {
 };
 
 export default function Reservas() {
+  const { usuario } = useAuth();
+  const esAdmin = usuario?.rol === 'administrador';
+
   const [reservas, setReservas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [libros, setLibros] = useState([]);
@@ -35,13 +39,19 @@ export default function Reservas() {
   const [modal, setModal] = useState(false);
   const [filtro, setFiltro] = useState('todos');
   const [form, setForm] = useState({ usuario_id: '', libro_id: '' });
+  const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [msg, setMsg] = useState(null);
 
   const cargar = async () => {
     try {
       const res = await api.get('/reservas');
-      setReservas(res.data.data);
+      const todas = res.data.data;
+      // Lector solo ve sus propias reservas
+      const filtradas = esAdmin
+        ? todas
+        : todas.filter(r => r.id_usuario === usuario?.id_usuario);
+      setReservas(filtradas);
     } catch (e) {
       console.error(e);
     } finally {
@@ -51,7 +61,9 @@ export default function Reservas() {
 
   useEffect(() => {
     cargar();
-    api.get('/usuarios').then(r => setUsuarios(r.data.data || [])).catch(() => {});
+    if (esAdmin) {
+      api.get('/usuarios').then(r => setUsuarios(r.data.data || [])).catch(() => {});
+    }
     api.get('/libros').then(r => setLibros(r.data.data || [])).catch(() => {});
   }, []);
 
@@ -60,10 +72,21 @@ export default function Reservas() {
     setTimeout(() => setMsg(null), 3000);
   };
 
+  const validar = () => {
+    const e = {};
+    if (!form.libro_id) e.libro_id = 'Selecciona un libro';
+    if (esAdmin && !form.usuario_id) e.usuario_id = 'Selecciona un usuario';
+    setErrores(e);
+    return Object.keys(e).length === 0;
+  };
+
   const crear = async () => {
+    if (!validar()) return;
     setGuardando(true);
     try {
-      await api.post('/reservas', form);
+      const payload = { libro_id: form.libro_id };
+      if (esAdmin) payload.usuario_id = form.usuario_id;
+      await api.post('/reservas', payload);
       mostrarMsg('ok', 'Reserva creada exitosamente');
       setModal(false);
       cargar();
@@ -110,9 +133,11 @@ export default function Reservas() {
       <div className="page-header-row">
         <div>
           <h1 className="page-title">Reservas</h1>
-          <p className="page-subtitle">Gestión de reservas de libros</p>
+          <p className="page-subtitle">
+            {esAdmin ? 'Gestión de reservas de libros' : 'Mis reservas'}
+          </p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setForm({ usuario_id: '', libro_id: '' }); setModal(true); }}>
+        <button className="btn btn-primary" onClick={() => { setForm({ usuario_id: '', libro_id: '' }); setErrores({}); setModal(true); }}>
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
@@ -138,7 +163,7 @@ export default function Reservas() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Usuario</th>
+                {esAdmin && <th>Usuario</th>}
                 <th>Libro</th>
                 <th>Fecha reserva</th>
                 <th>Expira</th>
@@ -148,15 +173,17 @@ export default function Reservas() {
             </thead>
             <tbody>
               {cargando ? (
-                <tr><td colSpan={7} className="table-empty">Cargando...</td></tr>
+                <tr><td colSpan={esAdmin ? 7 : 6} className="table-empty">Cargando...</td></tr>
               ) : filtradas.length === 0 ? (
-                <tr><td colSpan={7} className="table-empty">Sin reservas</td></tr>
+                <tr><td colSpan={esAdmin ? 7 : 6} className="table-empty">Sin reservas</td></tr>
               ) : filtradas.map(r => (
                 <tr key={r.id_reserva}>
                   <td className="td-mono">#{r.id_reserva}</td>
-                  <td className="td-primary">
-                    {r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos || ''}`.trim() : '—'}
-                  </td>
+                  {esAdmin && (
+                    <td className="td-primary">
+                      {r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos || ''}`.trim() : '—'}
+                    </td>
+                  )}
                   <td>
                     <div className="truncate" style={{ maxWidth: '180px' }}>{r.libro?.titulo || '—'}</div>
                   </td>
@@ -166,9 +193,11 @@ export default function Reservas() {
                   <td>
                     {r.estado === 'pendiente' && (
                       <div className="flex gap-2">
-                        <button className="btn btn-success btn-sm" onClick={() => confirmar(r.id_reserva)}>
-                          Confirmar
-                        </button>
+                        {esAdmin && (
+                          <button className="btn btn-success btn-sm" onClick={() => confirmar(r.id_reserva)}>
+                            Confirmar
+                          </button>
+                        )}
                         <button className="btn btn-danger btn-sm" onClick={() => cancelar(r.id_reserva)}>
                           Cancelar
                         </button>
@@ -185,18 +214,6 @@ export default function Reservas() {
       {modal && (
         <Modal titulo="Nueva reserva" onClose={() => setModal(false)}>
           <div className="form-group">
-            <label>Usuario *</label>
-            <select value={form.usuario_id} onChange={e => setForm({ ...form, usuario_id: e.target.value })}>
-              <option value="">Seleccionar usuario...</option>
-              {usuarios.map(u => (
-                <option key={u.id_usuario} value={u.id_usuario}>
-                  {u.nombres} {u.apellidos} — {u.carnet_u_identificacion}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
             <label>Libro *</label>
             <select value={form.libro_id} onChange={e => setForm({ ...form, libro_id: e.target.value })}>
               <option value="">Seleccionar libro...</option>
@@ -206,7 +223,23 @@ export default function Reservas() {
                 </option>
               ))}
             </select>
+            {errores.libro_id && <span className="form-error">{errores.libro_id}</span>}
           </div>
+
+          {esAdmin && (
+            <div className="form-group">
+              <label>Usuario *</label>
+              <select value={form.usuario_id} onChange={e => setForm({ ...form, usuario_id: e.target.value })}>
+                <option value="">Seleccionar usuario...</option>
+                {usuarios.map(u => (
+                  <option key={u.id_usuario} value={u.id_usuario}>
+                    {u.nombres} {u.apellidos} — {u.carnet_u_identificacion}
+                  </option>
+                ))}
+              </select>
+              {errores.usuario_id && <span className="form-error">{errores.usuario_id}</span>}
+            </div>
+          )}
 
           <div className="alert alert-warning" style={{ marginBottom: 0 }}>
             La reserva expirará automáticamente en 7 días si no es confirmada.
@@ -214,11 +247,7 @@ export default function Reservas() {
 
           <div className="modal-footer">
             <button className="btn btn-ghost" onClick={() => setModal(false)}>Cancelar</button>
-            <button
-              className="btn btn-primary"
-              onClick={crear}
-              disabled={guardando || !form.usuario_id || !form.libro_id}
-            >
+            <button className="btn btn-primary" onClick={crear} disabled={guardando}>
               {guardando ? 'Creando...' : 'Crear reserva'}
             </button>
           </div>

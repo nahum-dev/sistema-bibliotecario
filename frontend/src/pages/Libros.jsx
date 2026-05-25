@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 function Modal({ titulo, onClose, children }) {
   return (
@@ -22,6 +23,9 @@ function Modal({ titulo, onClose, children }) {
 const FORM_INICIAL = { titulo: '', isbn: '', editorial: '', anio_publicacion: '', cantidad_total: '', id_categoria: '', autores: [] };
 
 export default function Libros() {
+  const { usuario } = useAuth();
+  const esAdmin = usuario?.rol === 'administrador';
+
   const [libros, setLibros] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [autores, setAutores] = useState([]);
@@ -30,6 +34,7 @@ export default function Libros() {
   const [modal, setModal] = useState(null);
   const [libroSel, setLibroSel] = useState(null);
   const [form, setForm] = useState(FORM_INICIAL);
+  const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [msg, setMsg] = useState(null);
 
@@ -58,12 +63,14 @@ export default function Libros() {
 
   const abrirCrear = () => {
     setForm(FORM_INICIAL);
+    setErrores({});
     setLibroSel(null);
     setModal('form');
   };
 
   const abrirEditar = (libro) => {
     setLibroSel(libro);
+    setErrores({});
     setForm({
       titulo: libro.titulo || '',
       isbn: libro.isbn || '',
@@ -76,7 +83,17 @@ export default function Libros() {
     setModal('form');
   };
 
+  const validar = () => {
+    const e = {};
+    if (!form.titulo.trim())       e.titulo = 'El título es obligatorio';
+    if (!form.id_categoria)        e.id_categoria = 'Selecciona una categoría';
+    if (!form.cantidad_total || form.cantidad_total < 1) e.cantidad_total = 'Ingresa la cantidad';
+    setErrores(e);
+    return Object.keys(e).length === 0;
+  };
+
   const guardar = async () => {
+    if (!validar()) return;
     setGuardando(true);
     try {
       const payload = { ...form, categoria_id: form.id_categoria };
@@ -121,14 +138,16 @@ export default function Libros() {
       <div className="page-header-row">
         <div>
           <h1 className="page-title">Libros</h1>
-          <p className="page-subtitle">Gestión del catálogo bibliográfico</p>
+          <p className="page-subtitle">Catálogo bibliográfico</p>
         </div>
-        <button className="btn btn-primary" onClick={abrirCrear}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nuevo libro
-        </button>
+        {esAdmin && (
+          <button className="btn btn-primary" onClick={abrirCrear}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Nuevo libro
+          </button>
+        )}
       </div>
 
       {msg && (
@@ -167,14 +186,14 @@ export default function Libros() {
                 <th>Autores</th>
                 <th>Disponibles</th>
                 <th>Total</th>
-                <th>Acciones</th>
+                {esAdmin && <th>Acciones</th>}
               </tr>
             </thead>
             <tbody>
               {cargando ? (
-                <tr><td colSpan={7} className="table-empty">Cargando...</td></tr>
+                <tr><td colSpan={esAdmin ? 7 : 6} className="table-empty">Cargando...</td></tr>
               ) : libros.length === 0 ? (
-                <tr><td colSpan={7} className="table-empty">No se encontraron libros</td></tr>
+                <tr><td colSpan={esAdmin ? 7 : 6} className="table-empty">No se encontraron libros</td></tr>
               ) : libros.map(libro => (
                 <tr key={libro.id_libro}>
                   <td>
@@ -194,12 +213,14 @@ export default function Libros() {
                     </span>
                   </td>
                   <td>{libro.cantidad_total}</td>
-                  <td>
-                    <div className="flex gap-2">
-                      <button className="btn btn-secondary btn-sm" onClick={() => abrirEditar(libro)}>Editar</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => eliminar(libro)}>Eliminar</button>
-                    </div>
-                  </td>
+                  {esAdmin && (
+                    <td>
+                      <div className="flex gap-2">
+                        <button className="btn btn-secondary btn-sm" onClick={() => abrirEditar(libro)}>Editar</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => eliminar(libro)}>Eliminar</button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -208,13 +229,16 @@ export default function Libros() {
       </div>
 
       {modal === 'form' && (
-        <Modal
-          titulo={libroSel ? 'Editar libro' : 'Nuevo libro'}
-          onClose={() => setModal(null)}
-        >
+        <Modal titulo={libroSel ? 'Editar libro' : 'Nuevo libro'} onClose={() => setModal(null)}>
           <div className="form-group">
             <label>Título *</label>
-            <input type="text" placeholder="Título del libro" value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })} />
+            <input
+              type="text"
+              placeholder="Título del libro"
+              value={form.titulo}
+              onChange={e => setForm({ ...form, titulo: e.target.value })}
+            />
+            {errores.titulo && <span className="form-error">{errores.titulo}</span>}
           </div>
 
           <div className="form-row">
@@ -234,19 +258,21 @@ export default function Libros() {
               <input type="text" placeholder="Editorial" value={form.editorial} onChange={e => setForm({ ...form, editorial: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Cantidad total</label>
-              <input type="number" placeholder="1" value={form.cantidad_total} onChange={e => setForm({ ...form, cantidad_total: e.target.value })} />
+              <label>Cantidad total *</label>
+              <input type="number" placeholder="1" min="1" value={form.cantidad_total} onChange={e => setForm({ ...form, cantidad_total: e.target.value })} />
+              {errores.cantidad_total && <span className="form-error">{errores.cantidad_total}</span>}
             </div>
           </div>
 
           <div className="form-group">
-            <label>Categoría</label>
+            <label>Categoría *</label>
             <select value={form.id_categoria} onChange={e => setForm({ ...form, id_categoria: e.target.value })}>
               <option value="">Seleccionar categoría...</option>
               {categorias.map(c => (
                 <option key={c.id_categoria} value={c.id_categoria}>{c.nombre_categoria}</option>
               ))}
             </select>
+            {errores.id_categoria && <span className="form-error">{errores.id_categoria}</span>}
           </div>
 
           <div className="form-group">
@@ -254,11 +280,7 @@ export default function Libros() {
             <div className="autores-grid">
               {autores.map(a => (
                 <label key={a.id_autor} className={`autor-chip ${form.autores.includes(a.id_autor) ? 'active' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={form.autores.includes(a.id_autor)}
-                    onChange={() => toggleAutor(a.id_autor)}
-                  />
+                  <input type="checkbox" checked={form.autores.includes(a.id_autor)} onChange={() => toggleAutor(a.id_autor)} />
                   {a.nombre_autor}
                 </label>
               ))}

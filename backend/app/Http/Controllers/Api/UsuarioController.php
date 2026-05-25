@@ -63,34 +63,35 @@ public function store(Request $request)
 
     // PUT /api/v1/usuarios/{id}
     public function update(Request $request, $id)
-    {
-        $usuario = Usuario::find($id);
-
-        if (!$usuario) {
-            return response()->json(['status' => 'error', 'message' => 'Usuario no encontrado'], 404);
-        }
-
-        $validated = $request->validate([
-            'nombre'             => 'sometimes|string|max:255',
-            'correo_electronico' => ['sometimes','email', Rule::unique('usuarios','correo_electronico')->ignore($id)],
-            'password'           => 'sometimes|string|min:8',
-            'rol'                => 'sometimes|in:administrador,bibliotecario,estudiante',
-            'activo'             => 'sometimes|boolean',
-        ]);
-
-        if (isset($validated['password'])) {
-            $validated['password_hash'] = Hash::make($validated['password']);
-            unset($validated['password']);
-        }
-
-        $usuario->update($validated);
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Usuario actualizado',
-            'data'    => $usuario->only(['id','nombre','correo_electronico','rol','activo'])
-        ]);
+{
+    $usuario = Usuario::find($id);
+    if (!$usuario) {
+        return response()->json(['status' => 'error', 'message' => 'Usuario no encontrado'], 404);
     }
+
+    $validated = $request->validate([
+        'nombres'                 => 'sometimes|string|max:255',
+        'apellidos'               => 'sometimes|string|max:255',
+        'carnet_u_identificacion' => 'sometimes|string|max:50',
+        'correo_electronico'      => 'sometimes|email|unique:usuarios,correo_electronico,' . $id . ',id_usuario',
+        'password'                => 'sometimes|string|min:8',
+        'rol'                     => 'sometimes|in:administrador,lector',
+        'activo'                  => 'sometimes|boolean',
+    ]);
+
+    if (isset($validated['password'])) {
+        $validated['password_hash'] = Hash::make($validated['password']);
+        unset($validated['password']);
+    }
+
+    $usuario->update($validated);
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => 'Usuario actualizado',
+        'data'    => $usuario->only(['id_usuario', 'nombres', 'apellidos', 'correo_electronico', 'rol', 'activo'])
+    ]);
+}
 
     // DELETE /api/v1/usuarios/{id}
     public function destroy($id)

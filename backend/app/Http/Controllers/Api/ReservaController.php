@@ -41,39 +41,50 @@ class ReservaController extends Controller
 
     // POST /api/v1/reservas
     public function store(Request $request)
-    {
-        $validated = $request->validate([
-    'usuario_id' => 'required|exists:usuarios,id_usuario',
-    'libro_id'   => 'required|exists:libros,id_libro',
-]);
+{
+    $usuarioAutenticado = $request->user();
 
-        // Verificar si ya tiene una reserva activa del mismo libro
-        $reservaExistente = Reserva::where('id_usuario', $validated['usuario_id'])
-    ->where('id_libro', $validated['libro_id'])
-    ->where('estado', 'pendiente')
-    ->first();
+    // Si es lector, forzar su propio ID
+    $usuarioId = $usuarioAutenticado->rol === 'administrador'
+        ? $request->usuario_id
+        : $usuarioAutenticado->id_usuario;
 
-        if ($reservaExistente) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Ya tienes una reserva activa para este libro'
-            ], 422);
-        }
+    $request->validate([
+        'libro_id' => 'required|exists:libros,id_libro',
+    ]);
 
-        $reserva = Reserva::create([
-    'id_usuario'       => $validated['usuario_id'],
-    'id_libro'         => $validated['libro_id'],
-    'fecha_reserva'    => now(),
-    'fecha_expiracion' => now()->addDays(7),
-    'estado'           => 'pendiente',
-]);
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Reserva creada. Tienes 7 días para retirar el libro.',
-            'data' => $reserva->load(['usuario', 'libro'])
-        ], 201);
+    if ($usuarioAutenticado->rol === 'administrador') {
+        $request->validate([
+            'usuario_id' => 'required|exists:usuarios,id_usuario',
+        ]);
     }
+
+    $reservaExistente = Reserva::where('id_usuario', $usuarioId)
+        ->where('id_libro', $request->libro_id)
+        ->where('estado', 'pendiente')
+        ->first();
+
+    if ($reservaExistente) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Ya tienes una reserva activa para este libro'
+        ], 422);
+    }
+
+    $reserva = Reserva::create([
+        'id_usuario'       => $usuarioId,
+        'id_libro'         => $request->libro_id,
+        'fecha_reserva'    => now(),
+        'fecha_expiracion' => now()->addDays(7),
+        'estado'           => 'pendiente',
+    ]);
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => 'Reserva creada. Tienes 7 días para retirar el libro.',
+        'data'    => $reserva->load(['usuario', 'libro'])
+    ], 201);
+}
 
     // PUT /api/v1/reservas/{id}/cancelar
     public function cancelar($id)
