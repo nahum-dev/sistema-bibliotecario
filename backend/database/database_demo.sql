@@ -44,8 +44,8 @@ INSERT INTO libros (id_libro, id_categoria, titulo, isbn, editorial, anio_public
 (1, 1, 'Cien Años de Soledad',          '978-0-06-088328-7', 'Harper Collins',  1967, 5, 3, 1),
 (2, 1, 'La Casa de los Espíritus',      '978-0-15-115873-2', 'Atria Books',     1982, 4, 2, 1),
 (3, 2, 'Sapiens',                       '978-0-06-231610-4', 'Harper Collins',  2011, 6, 4, 1),
-(4, 3, 'Así Habló Zaratustra',          '978-0-14-044118-5', 'Penguin Classics', 1883, 3, 3, 1),
-(5, 4, 'El Origen de las Especies',     '978-0-14-043205-3', 'Penguin Classics', 1859, 2, 1, 1),
+(4, 3, 'Así Habló Zaratustra', '978-0-14-044118-5', 'Penguin Classics', 1901, 3, 3, 1),
+(5, 4, 'El Origen de las Especies', '978-0-14-043205-3', 'Penguin Classics', 1901, 2, 1, 1),
 (6, 7, 'Código Limpio',                 '978-0-13-235088-4', 'Prentice Hall',   2008, 4, 2, 1),
 (7, 7, 'Introducción a los Algoritmos', '978-0-26-204630-5', 'MIT Press',       2009, 3, 1, 1),
 (8, 8, 'El Lenguaje de Programación C++','978-0-32-156384-2','Addison-Wesley',  2013, 2, 2, 1);
