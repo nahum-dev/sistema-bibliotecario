@@ -8,7 +8,7 @@ RUN npm install
 COPY . .
 
 # Apuntar al backend en Docker
-ENV VITE_API_URL=http://192.168.43.39/api/v1
+ENV VITE_API_URL=http://192.168.59.92:8000/api/v1
 
 RUN npm run build
 
